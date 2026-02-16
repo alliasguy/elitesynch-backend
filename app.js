@@ -185,7 +185,7 @@ app.post(
         userId: user._id, token: token
       })
 
-      const verificationLink = `https://www.signalsynch.com/${user._id}/verify/${token}`
+      const verificationLink = `https://www.elitesynch.com/${user._id}/verify/${token}`
 
       // Prepare response data
       const response = {
