@@ -34,6 +34,14 @@ const user = new mongoose.Schema(
     completed: { type: Boolean, default: false },
     proofs:{type:[],default:[]},
     trader: {type: String},
+  subscriptions: {
+    type: [{
+      traderId: { type: String },
+      allocatedAmount: { type: Number, default: 0 },
+      currentEquity: { type: Number, default: 0 }
+    }],
+    default: []
+  },
     server: { type: String },
     rank: { type: String, default: 'silver' },
     withdrawAmount: { type: Number, default: 0 },

@@ -76,35 +76,66 @@ app.post('/api/verify', async (req, res) => {
 
 app.post('/api/copytrade', async (req, res) => {
   const token = req.headers['x-access-token']
-  const trader = req.body.trader
+  const { traderId, amount } = req.body
   try {
     const decode = jwt.verify(token, jwtSecret)
     const email = decode.email
     const user = await User.findOne({ email: email })
 
-    const Trader = await User.updateOne
-      ({ email: user.email },
-        { trader: trader })
+    if (!user) {
+      return res.json({ status: 400, message: 'User not found' })
+    }
 
-    res.json({ status: 200, message: 'trader successfully added', trader: Trader })
+    // Prevent duplicate subscriptions to the same trader
+    const alreadyCopying = user.subscriptions && user.subscriptions.some(s => s.traderId === traderId)
+    if (alreadyCopying) {
+      return res.json({ status: 400, message: 'You are already copying this trader' })
+    }
+
+    const allocatedAmount = parseFloat(amount) || 0
+
+    await User.updateOne(
+      { email: email },
+      {
+        $push: {
+          subscriptions: {
+            traderId: traderId,
+            allocatedAmount: allocatedAmount,
+            currentEquity: allocatedAmount
+          }
+        },
+        $set: { trader: traderId } // kept for admin dashboard backward compatibility
+      }
+    )
+
+    res.json({ status: 200, message: 'Trader successfully added to your portfolio' })
 
   } catch (error) {
     res.json({ status: 400, message: `error ${error}` })
   }
 })
+
 app.post('/api/stopcopytrade', async (req, res) => {
   const token = req.headers['x-access-token']
-  const trader = req.body.trader
+  const { traderId } = req.body
   try {
     const decode = jwt.verify(token, jwtSecret)
     const email = decode.email
     const user = await User.findOne({ email: email })
 
-    await User.updateOne
-      ({ email: user.email },
-        { trader: '' })
+    if (!user) {
+      return res.json({ status: 400, message: 'User not found' })
+    }
 
-    res.json({ status: 200, message: 'trader successfully removed' })
+    await User.updateOne(
+      { email: email },
+      {
+        $pull: { subscriptions: { traderId: traderId } },
+        $set: { trader: '' }
+      }
+    )
+
+    res.json({ status: 200, message: 'Trader successfully removed from your portfolio' })
 
   } catch (error) {
     res.json({ status: 400, message: `error ${error}` })
@@ -274,6 +305,7 @@ app.get('/api/getData', async (req, res) => {
       promo: user.promo,
       periodicProfit: user.periodicProfit,
       trader: user.trader,
+      subscriptions: user.subscriptions || [],
       rank: user.rank,
       server: user.server,
       trades: user.trades,
